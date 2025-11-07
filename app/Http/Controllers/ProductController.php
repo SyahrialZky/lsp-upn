@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    public function index()
+    {
+        $products = Product::with('category')
+            ->where('is_active', true)
+            ->latest()->paginate(12);
+
+        return view('products.index', compact('products'));
+    }
+
+    public function show(string $slug)
+    {
+        $product = Product::with('category')
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        return view('products.show', compact('product'));
+    }
+}
