@@ -13,7 +13,10 @@
       </div>
       <div class="text-end">
         <div class="badge bg-secondary text-uppercase">{{ $order->status }}</div>
-        <div class="small">Pembayaran: {{ strtoupper($order->payment_status) }}</div>
+        <div class="small">
+          Pembayaran: {{ strtoupper($order->payment_status->value ?? $order->payment_status) }}
+        </div>
+
       </div>
     </div>
   </div>

@@ -11,8 +11,8 @@
     <h1 class="h4">{{ $product->name }}</h1>
     <div class="text-muted mb-2">Kategori: {{ $product->category?->name ?? '-' }}</div>
     <div class="mb-3">
-      <span class="badge bg-{{ $product->condition === 'classic' ? 'secondary' : 'info' }}">
-        {{ ucfirst($product->condition) }}
+      <span class="badge bg-{{ ($product->condition->value ?? $product->condition) === 'classic' ? 'secondary' : 'info' }}">
+        {{ ucfirst($product->condition->value ?? $product->condition) }}
       </span>
       <span class="badge bg-{{ $product->stock > 0 ? 'success' : 'danger' }}">
         {{ $product->stock > 0 ? 'Stok tersedia' : 'Stok habis' }}

@@ -44,7 +44,7 @@
               <td>{{ $o->code }}</td>
               <td>{{ $o->user?->name ?? '-' }}</td>
               <td><span class="badge bg-secondary text-uppercase">{{ $o->status }}</span></td>
-              <td>{{ strtoupper($o->payment_status) }}</td>
+              <td>{{ strtoupper($o->payment_status->value ?? $o->payment_status) }}</td>
               <td>Rp {{ number_format($o->total_price,0,',','.') }}</td>
               <td>{{ $o->created_at->format('d M Y H:i') }}</td>
               <td class="text-end">

@@ -10,6 +10,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -72,6 +73,7 @@ class ProductController extends Controller
      */
     public function edit(string $id)
     {
+        $product = Product::findOrFail($id);
         $categories = Category::orderBy('name')->get();
         return view('admin.products.edit', compact('product', 'categories'));
     }
@@ -81,31 +83,28 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, Product $product)
     {
-        $data = $request->validate([
-            'category_id' => 'required|exists:categories,id',
-            'name'        => 'required|string|max:255',
-            'slug'        => 'nullable|string|max:255|unique:products,slug,' . $product->id,
-            'description' => 'nullable|string',
-            'price'       => 'required|integer|min:0',
-            'stock'       => 'required|integer|min:0',
-            'condition'   => 'required|in:classic,custom',
-            'is_active'   => 'required|boolean',
-            'thumbnail'   => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
+        $data = $request->validated();
 
-        $data['slug'] = $data['slug'] ?? $product->slug;
+        if (empty($data['slug'])) {
+            $data['slug'] = $product->slug;
+        }
 
         if ($request->hasFile('thumbnail')) {
             if ($product->thumbnail) {
                 Storage::disk('public')->delete($product->thumbnail);
             }
+
             $data['thumbnail'] = $request->file('thumbnail')->store('products', 'public');
         }
 
         $product->update($data);
 
-        return redirect()->route('admin.products.index')->with('success', 'Produk diperbarui.');
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', 'Produk berhasil diperbarui.');
     }
+
+
 
     /**
      * Remove the specified resource from storage.

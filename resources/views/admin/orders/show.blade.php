@@ -50,7 +50,7 @@
         <div class="mb-2"><span class="text-muted">Kode:</span> {{ $order->code }}</div>
         <div class="mb-2"><span class="text-muted">Pengguna:</span> {{ $order->user?->name ?? '-' }}</div>
         <div class="mb-2"><span class="text-muted">Status:</span> <span class="badge bg-secondary text-uppercase">{{ $order->status }}</span></div>
-        <div class="mb-2"><span class="text-muted">Pembayaran:</span> {{ strtoupper($order->payment_status) }} ({{ $order->payment_method }})</div>
+        <div class="mb-2"><span class="text-muted">Pembayaran:</span> {{ strtoupper($order->payment_status->value ?? $order->payment_status) }} ({{ $order->payment_method }})</div>
         <div class="mb-2"><span class="text-muted">Telepon:</span> {{ $order->phone }}</div>
         <div class="mb-2"><span class="text-muted">Alamat:</span> {{ $order->shipping_address }}</div>
         @if($order->proof_path)
