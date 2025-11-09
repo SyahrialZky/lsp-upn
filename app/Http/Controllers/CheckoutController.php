@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -14,72 +15,92 @@ class CheckoutController extends Controller
 {
     public function form()
     {
-        $cart = session('cart', []);
-        if (empty($cart)) {
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+        $items = Cart::with('product')
+            ->where('user_id', auth()->id())
+            ->get();
+
+        if ($items->isEmpty()) {
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'Keranjang kamu masih kosong.');
         }
-        $total = collect($cart)->sum(fn($i) => $i['price'] * $i['qty']);
-        return view('checkout.form', compact('cart', 'total'));
+
+        $total = $items->sum(fn ($item) => $item->product->price * $item->qty);
+
+        return view('checkout.form', compact('items', 'total'));
     }
 
     public function submit(Request $request)
-    {
-        $request->validate([
-            'phone' => 'required|string|max:30',
-            'shipping_address' => 'required|string|max:1000',
-            'payment_method' => 'required|in:transfer,manual',
-            'notes' => 'nullable|string|max:1000',
-        ]);
+{
+    $request->validate([
+        'phone'            => 'required|string|max:30',
+        'shipping_address' => 'required|string|max:1000',
+        'payment_method'   => 'required|in:transfer,manual',
+        'notes'            => 'nullable|string|max:1000',
+    ]);
 
-        $cart = session('cart', []);
-        if (empty($cart)) {
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+    // Ambil keranjang dari DB, bukan dari session lagi
+    $items = Cart::with('product')
+        ->where('user_id', auth()->id())
+        ->get();
+
+    if ($items->isEmpty()) {
+        return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+    }
+
+    return DB::transaction(function () use ($request, $items) {
+        // Lock stok agar konsisten
+        foreach ($items as $item) {
+            $p = Product::lockForUpdate()->find($item->product_id);
+
+            if (!$p || !$p->is_active || $p->stock < $item->qty) {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'Stok berubah/kurang untuk ' . ($p->name ?? 'produk'));
+            }
         }
 
-        return DB::transaction(function () use ($request, $cart) {
-            // Lock stok agar konsisten
-            foreach ($cart as $it) {
-                $p = Product::lockForUpdate()->find($it['product_id']);
-                if (!$p || !$p->is_active || $p->stock < $it['qty']) {
-                    return redirect()->route('cart.index')
-                        ->with('error', 'Stok berubah/kurang untuk ' . ($p->name ?? 'produk'));
-                }
-            }
+        // Hitung total berdasarkan harga produk saat ini
+        $total = $items->sum(fn ($item) => $item->product->price * $item->qty);
 
-            $total = collect($cart)->sum(fn($i) => $i['price'] * $i['qty']);
+        $order = Order::create([
+            'user_id'          => auth()->id(),
+            'code'             => 'ORD-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6)),
+            'total_price'      => $total,
+            'status'           => 'pending',
+            'payment_method'   => $request->payment_method,
+            'payment_status'   => 'unpaid',
+            'phone'            => $request->phone,
+            'shipping_address' => $request->shipping_address,
+            'notes'            => $request->notes,
+        ]);
 
-            $order = Order::create([
-                'user_id'         => auth()->id(),
-                'code'            => 'ORD-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6)),
-                'total_price'     => $total,
-                'status'          => 'pending',
-                'payment_method'  => $request->payment_method,
-                'payment_status'  => 'unpaid',
-                'phone'           => $request->phone,
-                'shipping_address' => $request->shipping_address,
-                'notes'           => $request->notes,
+        foreach ($items as $item) {
+            $p = Product::lockForUpdate()->find($item->product_id);
+
+            // jaga-jaga kalau stok berubah di tengah
+            $qty = min($item->qty, $p->stock);
+
+            OrderItem::create([
+                'order_id'     => $order->id,
+                'product_id'   => $p->id,
+                'product_name' => $p->name,
+                'price'        => $p->price,
+                'qty'          => $qty,
+                'subtotal'     => $p->price * $qty,
             ]);
 
-            foreach ($cart as $it) {
-                $p = Product::lockForUpdate()->find($it['product_id']);
-                $qty = min($it['qty'], $p->stock);
+            $p->decrement('stock', $qty);
+        }
 
-                OrderItem::create([
-                    'order_id'     => $order->id,
-                    'product_id'   => $p->id,
-                    'product_name' => $p->name,
-                    'price'        => $p->price,
-                    'qty'          => $qty,
-                    'subtotal'     => $p->price * $qty,
-                ]);
+        Cart::where('user_id', auth()->id())->delete();
 
-                $p->decrement('stock', $qty);
-            }
+        session()->forget('cart');
 
-            session()->forget('cart');
+        return redirect()
+            ->route('orders.show', $order->code)
+            ->with('success', 'Pesanan berhasil dibuat. Silakan lakukan pembayaran sesuai metode yang dipilih.');
+    });
+}
 
-            return redirect()->route('orders.show', $order->code)
-                ->with('success', 'Pesanan berhasil dibuat. Silakan lakukan pembayaran sesuai metode yang dipilih.');
-        });
-    }
 }

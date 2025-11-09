@@ -5,7 +5,7 @@
 <div class="p-4 p-md-5 mb-4 bg-light rounded-3">
   <div class="container py-5">
     <h1 class="display-5 fw-bold">Motor Classic & Custom</h1>
-    <p class="col-md-8 fs-5">Temukan motor klasik, kustom, dan part pilihan. Langsung checkout, simple dan cepat.</p>
+    <p class="col-md-8 fs-5">Temukan motor klasik, kustom, berkualitas. Langsung checkout, simple dan cepat.</p>
     <a href="{{ route('products.index') }}" class="btn btn-primary btn-lg">Lihat Semua Produk</a>
   </div>
 </div>

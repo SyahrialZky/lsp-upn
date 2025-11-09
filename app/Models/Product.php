@@ -83,5 +83,18 @@ class Product extends Model
                 $p->slug = Str::slug($p->name . '-' . Str::random(4));
             }
         });
+         static::saving(function (Product $product) {
+            if ($product->stock < 0) {
+                $product->stock = 0;
+            }
+
+            if ($product->stock === 0) {
+                $product->is_active = false;
+            }
+            else{
+                 $product->is_active = true;
+            }
+        });
     }
+    
 }
