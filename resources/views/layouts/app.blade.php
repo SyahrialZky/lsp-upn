@@ -25,7 +25,12 @@
           <li class="nav-item me-2">
             <a class="btn btn-outline-light btn-sm" href="{{ route('cart.index') }}">
               Keranjang
-              @php $count = collect(session('cart', []))->sum('qty'); @endphp
+              @php
+                $count = 0;
+                if(auth()->check()) {
+                    $count = \App\Models\Cart::where('user_id', auth()->id())->sum('qty');
+                }
+              @endphp
               <span class="badge bg-light text-dark">{{ $count }}</span>
             </a>
           </li>

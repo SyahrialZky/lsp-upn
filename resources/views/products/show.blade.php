@@ -21,14 +21,17 @@
     <h3 class="fw-bold">Rp {{ number_format($product->price,0,',','.') }}</h3>
     <p class="mt-3">{{ $product->description }}</p>
 
-    <form action="{{ route('cart.add') }}" method="post" class="mt-4">
+    @auth
+    <form action="{{ route('cart.add') }}" method="post">
       @csrf
       <input type="hidden" name="product_id" value="{{ $product->id }}">
-      <div class="input-group" style="max-width: 220px;">
-        <input type="number" name="qty" value="1" min="1" class="form-control">
-        <button class="btn btn-primary" {{ $product->stock < 1 ? 'disabled' : '' }}>Tambah ke Keranjang</button>
-      </div>
+      <button class="btn btn-primary btn-sm w-100">Tambah ke Keranjang</button>
     </form>
+    @else
+    <a href="{{ route('login') }}" class="btn btn-secondary btn-sm w-100">
+      Login untuk membeli
+    </a>
+  @endauth
   </div>
 </div>
 @endsection

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cart;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
@@ -9,53 +10,50 @@ class CartController extends Controller
 {
     public function index()
     {
-        $cart = session('cart', []);
-        $total = collect($cart)->sum(fn($i) => $i['price'] * $i['qty']);
-        return view('cart.index', compact('cart', 'total'));
+        $items = Cart::with('product')
+            ->where('user_id', auth()->id())
+            ->get();
+
+        $total = $items->sum(fn($item) => $item->product->price * $item->qty);
+
+        return view('cart.index', compact('items','total'));
     }
 
     public function add(Request $request)
     {
         $data = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'qty' => 'nullable|integer|min:1'
+            'qty'        => 'nullable|integer|min:1',
         ]);
 
-        $product = Product::findOrFail($data['product_id']);
-        if (!$product->is_active || $product->stock < 1) {
-            return back()->with('error', 'Produk tidak tersedia.');
-        }
+        $qty = $data['qty'] ?? 1;
 
-        $cart = session('cart', []);
-        $key = (string)$product->id;
-        $qty = max(1, (int)($data['qty'] ?? 1));
+        $item = Cart::firstOrNew([
+            'user_id'    => auth()->id(),
+            'product_id' => $data['product_id'],
+        ]);
 
-        if (isset($cart[$key])) {
-            $cart[$key]['qty'] += $qty;
-        } else {
-            $cart[$key] = [
-                'product_id' => $product->id,
-                'name' => $product->name,
-                'price' => $product->price,
-                'qty' => $qty
-            ];
-        }
+        $item->qty = ($item->exists ? $item->qty : 0) + $qty;
+        $item->save();
 
-        session(['cart' => $cart]);
-        return back()->with('success', 'Ditambahkan ke keranjang.');
+        return back()->with('success', 'Produk ditambahkan ke keranjang.');
     }
 
     public function update(Request $request)
     {
         $data = $request->validate([
-            'product_id' => 'required',
-            'qty' => 'required|integer|min:1'
+            'product_id' => 'required|exists:products,id',
+            'qty'        => 'required|integer|min:0',
         ]);
 
-        $cart = session('cart', []);
-        if (isset($cart[$data['product_id']])) {
-            $cart[$data['product_id']]['qty'] = $data['qty'];
-            session(['cart' => $cart]);
+        $item = Cart::where('user_id', auth()->id())
+            ->where('product_id', $data['product_id'])
+            ->firstOrFail();
+
+        if ($data['qty'] == 0) {
+            $item->delete();
+        } else {
+            $item->update(['qty' => $data['qty']]);
         }
 
         return back()->with('success', 'Keranjang diperbarui.');
@@ -64,13 +62,13 @@ class CartController extends Controller
     public function remove(Request $request)
     {
         $data = $request->validate([
-            'product_id' => 'required'
+            'product_id' => 'required|exists:products,id',
         ]);
 
-        $cart = session('cart', []);
-        unset($cart[$data['product_id']]);
-        session(['cart' => $cart]);
+        Cart::where('user_id', auth()->id())
+            ->where('product_id', $data['product_id'])
+            ->delete();
 
-        return back()->with('success', 'Item dihapus.');
+        return back()->with('success', 'Item dihapus dari keranjang.');
     }
 }
